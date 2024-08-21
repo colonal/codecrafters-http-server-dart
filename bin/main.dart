@@ -77,6 +77,31 @@ void handleClient(Socket clientSocket) async {
 
       // Send the HTTP response back to the client
       clientSocket.write(response);
+    } else if (requestLineObject.requestTarget.contains("/files/")) {
+      // response body
+      String fileName = requestLineObject.requestTarget.split("/files/")[1];
+
+      var myFile = File(fileName);
+      var isFileExists = await myFile.exists();
+
+      late String response;
+      if (isFileExists) {
+        var fileSize = await myFile.length();
+        var responseBody = await myFile.readAsString();
+
+        // Prepare the HTTP response
+        response = 'HTTP/1.1 200 OK\r\n' +
+            'Content-Type: application/octet-stream\r\n' +
+            'Content-Length: ${fileSize}\r\n' +
+            '\r\n' +
+            '$responseBody';
+      } else {
+        // Prepare the HTTP response
+        response = 'HTTP/1.1 404 Not Found\r\n\r\n';
+      }
+
+      // Send the HTTP response back to the client
+      clientSocket.write(response);
     } else {
       // Send a 404 Not Found response
       clientSocket.write('HTTP/1.1 404 Not Found\r\n\r\n');
