@@ -25,6 +25,11 @@ void handleClient(Socket clientSocket) async {
 
     RequestLine requestLineObject = RequestLine.fromString(requestLines[0]);
     print("RequestLine: ${requestLineObject}");
+
+    // Extract and print headers
+    Map<String, String> headers = extractHeaders(requestLines);
+    print("headers: ${headers}");
+
     print("\n${'-' * 20}\n");
 
     // Handle the request
@@ -59,6 +64,19 @@ void handleClient(Socket clientSocket) async {
 
       // Send the HTTP response back to the client
       clientSocket.write(response);
+    } else if (requestLineObject.requestTarget.contains("/user-agent")) {
+      // response body
+      String responseBody = headers["User-Agent"] ?? "";
+
+      // Prepare the HTTP response
+      String response = 'HTTP/1.1 200 OK\r\n' +
+          'Content-Type: text/plain\r\n' +
+          'Content-Length: ${responseBody.length}\r\n' +
+          '\r\n' +
+          '$responseBody';
+
+      // Send the HTTP response back to the client
+      clientSocket.write(response);
     } else {
       // Send a 404 Not Found response
       clientSocket.write('HTTP/1.1 404 Not Found\r\n\r\n');
@@ -69,4 +87,19 @@ void handleClient(Socket clientSocket) async {
     // Close the connection
     await clientSocket.close();
   }
+}
+
+Map<String, String> extractHeaders(List<String> requestLines) {
+  Map<String, String> headers = {};
+  for (int i = 1; i < requestLines.length; i++) {
+    String line = requestLines[i];
+    if (line.isEmpty) break; // End of headers
+    int separatorIndex = line.indexOf(':');
+    if (separatorIndex != -1) {
+      String headerName = line.substring(0, separatorIndex).trim();
+      String headerValue = line.substring(separatorIndex + 1).trim();
+      headers[headerName] = headerValue;
+    }
+  }
+  return headers;
 }
