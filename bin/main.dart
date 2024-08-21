@@ -2,15 +2,15 @@ import 'dart:io';
 
 import 'model/request_line.dart';
 
-void main() async {
+void main(List<String> arguments) async {
   var serverSocket = await ServerSocket.bind('0.0.0.0', 4221);
 
   await for (var clientSocket in serverSocket) {
-    handleClient(clientSocket);
+    handleClient(clientSocket, arguments);
   }
 }
 
-void handleClient(Socket clientSocket) async {
+void handleClient(Socket clientSocket, List<String> arguments) async {
   print("Client connected");
   print("Address: ${clientSocket.address.address}");
   print("name: ${clientSocket.address.type.name}");
@@ -81,27 +81,34 @@ void handleClient(Socket clientSocket) async {
       // response body
       String fileName = requestLineObject.requestTarget.split("/files/")[1];
 
-      var myFile = File(fileName);
-      var isFileExists = await myFile.exists();
+      print("current.path: ${Directory.current.path}");
+      print("arguments: ${arguments}");
+      List<String> paths = [
+        Directory.current.path,
+        if (arguments.length > 1) arguments[1]
+      ];
 
-      late String response;
-      if (isFileExists) {
-        var fileSize = await myFile.length();
-        var responseBody = await myFile.readAsString();
+      for (var path in paths) {
+        var myFile = File("$path$fileName");
+        var isFileExists = await myFile.exists();
+        if (isFileExists) {
+          var fileSize = await myFile.length();
+          var responseBody = await myFile.readAsString();
 
-        // Prepare the HTTP response
-        response = 'HTTP/1.1 200 OK\r\n' +
-            'Content-Type: application/octet-stream\r\n' +
-            'Content-Length: ${fileSize}\r\n' +
-            '\r\n' +
-            '$responseBody';
-      } else {
-        // Prepare the HTTP response
-        response = 'HTTP/1.1 404 Not Found\r\n\r\n';
+          // Prepare the HTTP response
+          var response = 'HTTP/1.1 200 OK\r\n' +
+              'Content-Type: application/octet-stream\r\n' +
+              'Content-Length: ${fileSize}\r\n' +
+              '\r\n' +
+              '$responseBody';
+          // Send the HTTP response back to the client
+          clientSocket.write(response);
+          return;
+        }
       }
 
-      // Send the HTTP response back to the client
-      clientSocket.write(response);
+      // Send a 404 Not Found response
+      clientSocket.write('HTTP/1.1 404 Not Found\r\n\r\n');
     } else {
       // Send a 404 Not Found response
       clientSocket.write('HTTP/1.1 404 Not Found\r\n\r\n');
