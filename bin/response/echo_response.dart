@@ -5,7 +5,10 @@ String echoResponse(Request request) {
   String responseBody = request.requestLine.requestTarget.split("/echo/")[1];
   String response = "";
 
-  if (request.headers['Accept-Encoding'] == 'gzip') {
+  List<String> acceptEncoding =
+      request.headers['Accept-Encoding']?.replaceAll(' ', '').split(',') ?? [];
+  print("acceptEncoding: $acceptEncoding");
+  if (acceptEncoding.contains('gzip')) {
     // Prepare the HTTP response
     response = 'HTTP/1.1 200 OK\r\n' +
         'Content-Type: text/plain\r\n' +
