@@ -1,5 +1,7 @@
+import '../enum/http_method.dart';
+
 class RequestLine {
-  final String hTTPMethod;
+  final HttpMethod hTTPMethod;
   final String requestTarget;
   final String hTTPVersion;
 
@@ -11,7 +13,7 @@ class RequestLine {
   factory RequestLine.fromString(String requestLine) {
     List<String> requestLineList = requestLine.split(' ');
     return RequestLine(
-      hTTPMethod: requestLineList[0],
+      hTTPMethod: HttpMethod.fromName(requestLineList[0]),
       requestTarget: requestLineList[1],
       hTTPVersion: requestLineList[2],
     );

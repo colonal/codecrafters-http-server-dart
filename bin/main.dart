@@ -1,6 +1,10 @@
 import 'dart:io';
 
-import 'model/request_line.dart';
+import 'model/request.dart';
+import 'response/echo_response.dart';
+import 'response/files_response.dart';
+import 'response/home_response.dart';
+import 'response/user_agent_response.dart';
 
 void main(List<String> arguments) async {
   var serverSocket = await ServerSocket.bind('0.0.0.0', 4221);
@@ -19,16 +23,13 @@ void handleClient(Socket clientSocket, List<String> arguments) async {
   try {
     // Read the client's request data
     List<int> data = await clientSocket.first;
-    String request = String.fromCharCodes(data);
-    List<String> requestLines = request.split('\r\n');
-    print("length: ${requestLines.length}");
+    String requestStr = String.fromCharCodes(data);
 
-    RequestLine requestLineObject = RequestLine.fromString(requestLines[0]);
-    print("RequestLine: ${requestLineObject}");
+    Request request = Request.fromString(requestStr);
+    print("RequestLine: ${request.requestLine}");
 
     // Extract and print headers
-    Map<String, String> headers = extractHeaders(requestLines);
-    print("headers: ${headers}");
+    print("headers: ${request.headers}");
 
     print("\n${'-' * 20}\n");
 
@@ -37,78 +38,32 @@ void handleClient(Socket clientSocket, List<String> arguments) async {
 
     // Send the HTTP response back to the client
     // ...
-    if (requestLineObject.requestTarget == '/' ||
-        requestLineObject.requestTarget == '/index.html') {
+    if (request.requestLine.requestTarget == '/' ||
+        request.requestLine.requestTarget == '/index.html') {
       // response body
-      String responseBody = 'Hello, World!';
-
-      // Prepare the HTTP response
-      String response = 'HTTP/1.1 200 OK\r\n' +
-          'Content-Type: text/plain\r\n' +
-          'Content-Length: ${responseBody.length}\r\n' +
-          '\r\n' +
-          '$responseBody';
+      String response = homeResponse();
 
       // Send the HTTP response back to the client
       clientSocket.write(response);
-    } else if (requestLineObject.requestTarget.contains("/echo/")) {
+    } else if (request.requestLine.requestTarget.contains("/echo/")) {
       // response body
-      String responseBody = requestLineObject.requestTarget.split("/echo/")[1];
-
-      // Prepare the HTTP response
-      String response = 'HTTP/1.1 200 OK\r\n' +
-          'Content-Type: text/plain\r\n' +
-          'Content-Length: ${responseBody.length}\r\n' +
-          '\r\n' +
-          '$responseBody';
+      String response = echoResponse(request);
 
       // Send the HTTP response back to the client
       clientSocket.write(response);
-    } else if (requestLineObject.requestTarget.contains("/user-agent")) {
+    } else if (request.requestLine.requestTarget.contains("/user-agent")) {
       // response body
-      String responseBody = headers["User-Agent"] ?? "";
-
-      // Prepare the HTTP response
-      String response = 'HTTP/1.1 200 OK\r\n' +
-          'Content-Type: text/plain\r\n' +
-          'Content-Length: ${responseBody.length}\r\n' +
-          '\r\n' +
-          '$responseBody';
+      String response = userAgentResponse(request);
 
       // Send the HTTP response back to the client
       clientSocket.write(response);
-    } else if (requestLineObject.requestTarget.contains("/files/")) {
+    } else if (request.requestLine.requestTarget.contains("/files/")) {
       // response body
-      String fileName = requestLineObject.requestTarget.split("/files/")[1];
+      FilesResponse filesResponse = FilesResponse();
+      String response = await filesResponse.response(arguments, request);
 
-      print("current.path: ${Directory.current.path}");
-      print("arguments: ${arguments}");
-      List<String> paths = [
-        Directory.current.path,
-        if (arguments.length > 1) arguments[1]
-      ];
-
-      for (var path in paths) {
-        var myFile = File("$path$fileName");
-        var isFileExists = await myFile.exists();
-        if (isFileExists) {
-          var fileSize = await myFile.length();
-          var responseBody = await myFile.readAsString();
-
-          // Prepare the HTTP response
-          var response = 'HTTP/1.1 200 OK\r\n' +
-              'Content-Type: application/octet-stream\r\n' +
-              'Content-Length: ${fileSize}\r\n' +
-              '\r\n' +
-              '$responseBody';
-          // Send the HTTP response back to the client
-          clientSocket.write(response);
-          return;
-        }
-      }
-
-      // Send a 404 Not Found response
-      clientSocket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+      // Send the HTTP response back to the client
+      clientSocket.write(response);
     } else {
       // Send a 404 Not Found response
       clientSocket.write('HTTP/1.1 404 Not Found\r\n\r\n');
@@ -119,19 +74,4 @@ void handleClient(Socket clientSocket, List<String> arguments) async {
     // Close the connection
     await clientSocket.close();
   }
-}
-
-Map<String, String> extractHeaders(List<String> requestLines) {
-  Map<String, String> headers = {};
-  for (int i = 1; i < requestLines.length; i++) {
-    String line = requestLines[i];
-    if (line.isEmpty) break; // End of headers
-    int separatorIndex = line.indexOf(':');
-    if (separatorIndex != -1) {
-      String headerName = line.substring(0, separatorIndex).trim();
-      String headerValue = line.substring(separatorIndex + 1).trim();
-      headers[headerName] = headerValue;
-    }
-  }
-  return headers;
 }
