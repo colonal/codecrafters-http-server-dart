@@ -15,8 +15,8 @@ String echoResponse(Request request) {
     List<int> stringBytes = utf8.encode(responseBody);
     List<int> stringGZip = GZipCodec().encode(stringBytes);
 
-    String body = base64.encode(stringGZip);
-    print("body: $body");
+    String body = compressString(responseBody);
+    print("body: ${body}");
 
     // Prepare the HTTP response
     response = 'HTTP/1.1 200 OK\r\n' +
@@ -24,7 +24,7 @@ String echoResponse(Request request) {
         'Content-Encoding: gzip\r\n' +
         'Content-Length: ${body.length}\r\n' +
         '\r\n' +
-        '$body';
+        String.fromCharCodes(stringGZip);
   } else {
     // Prepare the HTTP response
     response = 'HTTP/1.1 200 OK\r\n' +
@@ -35,4 +35,16 @@ String echoResponse(Request request) {
   }
 
   return response;
+}
+
+String compressString(String content) {
+  final gzip = GZipCodec();
+
+  List<int> contentBytes = utf8.encode(content);
+
+  List<int> compressedBytes = gzip.encode(contentBytes);
+
+  String compressedString = String.fromCharCodes(compressedBytes);
+
+  return compressedString;
 }
