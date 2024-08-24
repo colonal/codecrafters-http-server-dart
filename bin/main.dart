@@ -47,10 +47,11 @@ void handleClient(Socket clientSocket, List<String> arguments) async {
       clientSocket.write(response);
     } else if (request.requestLine.requestTarget.contains("/echo/")) {
       // response body
-      String response = echoResponse(request);
+      var response = echoResponse(request, clientSocket);
 
       // Send the HTTP response back to the client
-      clientSocket.write(response);
+      clientSocket.write(response.$1);
+      clientSocket.add(response.$2);
     } else if (request.requestLine.requestTarget.contains("/user-agent")) {
       // response body
       String response = userAgentResponse(request);
@@ -68,8 +69,8 @@ void handleClient(Socket clientSocket, List<String> arguments) async {
       // Send a 404 Not Found response
       clientSocket.write('HTTP/1.1 404 Not Found\r\n\r\n');
     }
-  } catch (e) {
-    print('Error: $e');
+  } catch (e, stackTrace) {
+    print('Error: $e\n$stackTrace');
   } finally {
     // Close the connection
     await clientSocket.close();

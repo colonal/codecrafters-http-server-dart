@@ -3,48 +3,39 @@ import 'dart:io';
 
 import '../model/request.dart';
 
-String echoResponse(Request request) {
+(String, List<int>) echoResponse(Request request, Socket clientSocket) {
   // response body
-  String responseBody = request.requestLine.requestTarget.split("/echo/")[1];
+  String responseBody =
+      request.requestLine.requestTarget.split("/echo/")[1].trim();
+  print("responseBody: ${responseBody}");
+
   String response = "";
 
   List<String> acceptEncoding =
       request.headers['Accept-Encoding']?.replaceAll(' ', '').split(',') ?? [];
-  print("acceptEncoding: $acceptEncoding");
+
+  List<int> body;
+
   if (acceptEncoding.contains('gzip')) {
     List<int> stringBytes = utf8.encode(responseBody);
-    List<int> stringGZip = GZipCodec().encode(stringBytes);
-
-    String body = compressString(responseBody);
-    print("body: ${body}");
+    List<int> bodyEncoded = GZipCodec().encode(stringBytes);
+    int bodyEncodedLength = bodyEncoded.length;
 
     // Prepare the HTTP response
     response = 'HTTP/1.1 200 OK\r\n' +
         'Content-Type: text/plain\r\n' +
         'Content-Encoding: gzip\r\n' +
-        'Content-Length: ${body.length}\r\n' +
-        '\r\n' +
-        String.fromCharCodes(stringGZip);
+        'Content-Length: $bodyEncodedLength\r\n' +
+        '\r\n';
+
+    body = bodyEncoded;
   } else {
     // Prepare the HTTP response
     response = 'HTTP/1.1 200 OK\r\n' +
         'Content-Type: text/plain\r\n' +
         'Content-Length: ${responseBody.length}\r\n' +
-        '\r\n' +
-        '$responseBody';
+        '\r\n';
+    body = utf8.encode(responseBody);
   }
-
-  return response;
-}
-
-String compressString(String content) {
-  final gzip = GZipCodec();
-
-  List<int> contentBytes = utf8.encode(content);
-
-  List<int> compressedBytes = gzip.encode(contentBytes);
-
-  String compressedString = String.fromCharCodes(compressedBytes);
-
-  return compressedString;
+  return (response, body);
 }
